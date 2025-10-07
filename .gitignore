@@ -1,0 +1,15 @@
+# Dependencies
+node_modules
+
+# Builds
+dist
+docs
+
+# Logs and coverage
+*.log
+*.lcov
+coverage
+# Editor junk
+.DS_Store
+.idea
+*.swp

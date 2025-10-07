@@ -1,0 +1,56 @@
+{
+  "name": "@ratio1/cstore-auth-ts",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "docs": "typedoc",
+    "release": "changeset version && pnpm install --lockfile-only && git add -A && git commit -m \"chore: version\" && changeset publish"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^1.8.0",
+    "edge-node-client": "^0.3.8"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.10.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "tsup": "^8.1.0",
+    "typedoc": "^0.26.6",
+    "typescript": "~5.5.4",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^2.1.1"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ratio1/cstore-auth-ts"
+  }
+}
