@@ -1,0 +1,68 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Determine publish necessity
+        id: prepublish
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view @ratio1/cstore-auth-ts version 2>/dev/null || echo '0.0.0')
+          if [ "$PACKAGE_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version $PACKAGE_VERSION already published; skipping npm publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Preparing to publish version $PACKAGE_VERSION."
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install dependencies
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm run lint
+
+      - name: Type check
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm run typecheck
+
+      - name: Test
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm test
+
+      - name: Build
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm run build
+
+      - name: Docs
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm run docs
+
+      - name: Publish to npm
+        if: steps.prepublish.outputs.publish == 'true'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
