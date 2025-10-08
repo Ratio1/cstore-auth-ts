@@ -1,4 +1,4 @@
-import { Ratio1EdgeNodeClient, type Ratio1EdgeNodeClientOptions } from 'edge-node-client';
+import { Ratio1EdgeNodeClient, type Ratio1EdgeNodeClientOptions } from '@ratio1/edge-node-client';
 
 type CStoreService = Ratio1EdgeNodeClient['cstore'];
 
@@ -24,7 +24,7 @@ class CStoreClientAdapter implements CStoreLikeClient {
 
   async hget(hkey: string, key: string): Promise<string | null> {
     try {
-      // edge-node-client exports hget({ hkey, key })
+      // @ratio1/edge-node-client exports hget({ hkey, key })
       const value = await this.service.hget({ hkey, key });
       if (value === undefined || value === null) {
         return null;
@@ -42,12 +42,12 @@ class CStoreClientAdapter implements CStoreLikeClient {
   }
 
   async hset(hkey: string, key: string, value: string): Promise<void> {
-    // edge-node-client exports hset({ hkey, key, value }) and resolves to boolean
+    // @ratio1/edge-node-client exports hset({ hkey, key, value }) and resolves to boolean
     await this.service.hset({ hkey, key, value });
   }
 
   async hgetAll(hkey: string): Promise<Record<string, string>> {
-    // edge-node-client exports hgetall({ hkey }) returning either an object map or array pairs
+    // @ratio1/edge-node-client exports hgetall({ hkey }) returning either an object map or array pairs
     const raw = await this.service.hgetall({ hkey });
     if (!raw) {
       return {};

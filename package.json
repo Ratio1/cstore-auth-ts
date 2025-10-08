@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^1.8.0",
-    "edge-node-client": "^0.3.8"
+    "@ratio1/edge-node-client": "^1.1.4"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
