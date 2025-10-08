@@ -6,14 +6,22 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -22,47 +30,72 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      - name: Determine publish necessity
-        id: prepublish
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply changesets
+        id: version
         run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          PUBLISHED_VERSION=$(npm view @ratio1/cstore-auth-ts version 2>/dev/null || echo '0.0.0')
-          if [ "$PACKAGE_VERSION" = "$PUBLISHED_VERSION" ]; then
+          if npx changeset version; then
+            npm install --package-lock-only
+            VERSION=$(node -p "require('./package.json').version")
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "No unpublished changesets found; skipping release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check npm availability
+        if: steps.version.outputs.release == 'true'
+        id: npm
+        run: |
+          if npm view @ratio1/cstore-auth-ts@"${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Version ${{ steps.version.outputs.version }} already exists on npm; skipping release."
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "Version $PACKAGE_VERSION already published; skipping npm publish."
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "Preparing to publish version $PACKAGE_VERSION."
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Install dependencies
-        if: steps.prepublish.outputs.publish == 'true'
-        run: npm ci
-
       - name: Lint
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm run lint
 
       - name: Type check
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm run typecheck
 
       - name: Test
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm test
 
       - name: Build
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm run build
 
       - name: Docs
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm run docs
 
+      - name: Prepare git release
+        if: steps.npm.outputs.publish == 'true'
+        run: |
+          git add -A
+          git commit -m "chore: release v${{ steps.version.outputs.version }}"
+          git tag v${{ steps.version.outputs.version }}
+
+      - name: Push release commit and tag
+        if: steps.npm.outputs.publish == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin HEAD
+          git push origin --tags
+
       - name: Publish to npm
-        if: steps.prepublish.outputs.publish == 'true'
+        if: steps.npm.outputs.publish == 'true'
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
