@@ -74,21 +74,6 @@ class CStoreAuth {
     ): Promise<PublicUser<TMeta> | null>;
   };
 
-  /** @deprecated Use simple.init() */
-  initAuth(): Promise<void>;
-  /** @deprecated Use simple.createUser() */
-  createUser<TMeta = Record<string, unknown>>(
-    username: string,
-    password: string,
-    opts?: CreateUserOptions<TMeta>
-  ): Promise<PublicUser<TMeta>>;
-  /** @deprecated Use simple.authenticate() */
-  authenticate<TMeta = Record<string, unknown>>(
-    username: string,
-    password: string
-  ): Promise<PublicUser<TMeta>>;
-  /** @deprecated Use simple.getUser() */
-  getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
 }
 ```
 
