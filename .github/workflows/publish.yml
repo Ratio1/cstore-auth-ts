@@ -33,25 +33,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply changesets
-        id: version
+      - name: Prepare release version
+        id: prepare
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if npx changeset version; then
-            npm install --package-lock-only
-            VERSION=$(node -p "require('./package.json').version")
-            echo "release=true" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "No unpublished changesets found; skipping release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view @ratio1/cstore-auth-ts version 2>/dev/null || echo '0.0.0')
+          echo "Current version: $CURRENT_VERSION"
+          echo "Published version: $PUBLISHED_VERSION"
+
+          if [ "$(printf '%s\n%s' "$CURRENT_VERSION" "$PUBLISHED_VERSION" | sort -V | tail -n1)" = "$PUBLISHED_VERSION" ] && [ "$CURRENT_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "package.json version ($CURRENT_VERSION) is behind npm ($PUBLISHED_VERSION). Exiting."
+            exit 1
           fi
 
+          if [ "$CURRENT_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "No unpublished version detected; attempting bump."
+            if npx changeset version; then
+              npm install --package-lock-only
+              NEXT_VERSION=$(node -p "require('./package.json').version")
+            else
+              NEXT_VERSION=$(npm version patch --no-git-tag-version)
+              NEXT_VERSION=${NEXT_VERSION#v}
+            fi
+            echo "Bumped version to $NEXT_VERSION"
+          else
+            NEXT_VERSION=$CURRENT_VERSION
+            echo "Using existing version $NEXT_VERSION"
+          fi
+
+          echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Check npm availability
-        if: steps.version.outputs.release == 'true'
         id: npm
         run: |
-          if npm view @ratio1/cstore-auth-ts@"${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            echo "Version ${{ steps.version.outputs.version }} already exists on npm; skipping release."
+          if npm view @ratio1/cstore-auth-ts@"${{ steps.prepare.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Version ${{ steps.prepare.outputs.version }} already exists on npm; skipping release."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -83,8 +102,8 @@ jobs:
         if: steps.npm.outputs.publish == 'true'
         run: |
           git add -A
-          git commit -m "chore: release v${{ steps.version.outputs.version }}"
-          git tag v${{ steps.version.outputs.version }}
+          git commit -m "chore: release v${{ steps.prepare.outputs.version }}"
+          git tag v${{ steps.prepare.outputs.version }}
 
       - name: Push release commit and tag
         if: steps.npm.outputs.publish == 'true'
