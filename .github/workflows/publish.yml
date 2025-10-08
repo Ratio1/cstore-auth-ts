@@ -6,115 +6,61 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Use Node.js
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org
           cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Prepare release version
-        id: prepare
+      - name: Build
+        run: npm run build
+
+      - name: Read package metadata
+        id: package-info
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          {
+            echo "name=$PACKAGE_NAME"
+            echo "version=$PACKAGE_VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check if publish is required
+        id: publish-check
         env:
+          PACKAGE_NAME: ${{ steps.package-info.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package-info.outputs.version }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          set -euo pipefail
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          PUBLISHED_VERSION=$(npm view @ratio1/cstore-auth-ts version 2>/dev/null || echo '0.0.0')
-          echo "Current version: $CURRENT_VERSION"
-          echo "Published version: $PUBLISHED_VERSION"
-
-          if [ "$(printf '%s\n%s' "$CURRENT_VERSION" "$PUBLISHED_VERSION" | sort -V | tail -n1)" = "$PUBLISHED_VERSION" ] && [ "$CURRENT_VERSION" != "$PUBLISHED_VERSION" ]; then
-            echo "package.json version ($CURRENT_VERSION) is behind npm ($PUBLISHED_VERSION). Exiting."
-            exit 1
-          fi
-
-          if [ "$CURRENT_VERSION" = "$PUBLISHED_VERSION" ]; then
-            echo "No unpublished version detected; attempting bump."
-            if npx changeset version; then
-              npm install --package-lock-only
-              NEXT_VERSION=$(node -p "require('./package.json').version")
-            else
-              NEXT_VERSION=$(npm version patch --no-git-tag-version)
-              NEXT_VERSION=${NEXT_VERSION#v}
-            fi
-            echo "Bumped version to $NEXT_VERSION"
-          else
-            NEXT_VERSION=$CURRENT_VERSION
-            echo "Using existing version $NEXT_VERSION"
-          fi
-
-          echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Check npm availability
-        id: npm
-        run: |
-          if npm view @ratio1/cstore-auth-ts@"${{ steps.prepare.outputs.version }}" version >/dev/null 2>&1; then
-            echo "Version ${{ steps.prepare.outputs.version }} already exists on npm; skipping release."
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Publish package
+        if: steps.publish-check.outputs.publish == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access restricted
 
-      - name: Lint
-        if: steps.npm.outputs.publish == 'true'
-        run: npm run lint
-
-      - name: Type check
-        if: steps.npm.outputs.publish == 'true'
-        run: npm run typecheck
-
-      - name: Test
-        if: steps.npm.outputs.publish == 'true'
-        run: npm test
-
-      - name: Build
-        if: steps.npm.outputs.publish == 'true'
-        run: npm run build
-
-      - name: Docs
-        if: steps.npm.outputs.publish == 'true'
-        run: npm run docs
-
-      - name: Prepare git release
-        if: steps.npm.outputs.publish == 'true'
-        run: |
-          git add -A
-          git commit -m "chore: release v${{ steps.prepare.outputs.version }}"
-          git tag v${{ steps.prepare.outputs.version }}
-
-      - name: Push release commit and tag
-        if: steps.npm.outputs.publish == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git push origin HEAD
-          git push origin --tags
-
-      - name: Publish to npm
-        if: steps.npm.outputs.publish == 'true'
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish skipped
+        if: steps.publish-check.outputs.publish != 'true'
+        run: echo "Package version ${{ steps.package-info.outputs.version }} is already published. Skipping."
