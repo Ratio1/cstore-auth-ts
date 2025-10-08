@@ -1,7 +1,13 @@
 import type { CStoreLikeClient } from './cstore';
 import { createDefaultCStoreClient } from './cstore';
 import { createPasswordHasher, type PasswordHasher } from './hasher';
-import type { CStoreAuthOptions, CreateUserOptions, PublicUser, UserRecord } from './types';
+import type {
+  CStoreAuthOptions,
+  CreateUserOptions,
+  PublicUser,
+  SimpleAuthApi,
+  UserRecord
+} from './types';
 import { resolveAuthEnv, readBootstrapAdminPassword, ENV_VARS } from './util/env';
 import { canonicalizeUsername } from './util/username';
 import {
@@ -22,6 +28,7 @@ interface Config {
 const ADMIN_USERNAME = 'admin';
 
 export class CStoreAuth {
+  public readonly simple: SimpleAuthApi;
   private readonly client: CStoreLikeClient;
   private readonly hasher: PasswordHasher;
   private readonly getNow: () => Date;
@@ -37,9 +44,21 @@ export class CStoreAuth {
     this.getNow = options.now ?? (() => new Date());
     this.logger = options.logger;
     this.overrides = { hkey: options.hkey, secret: options.secret };
+    this.simple = {
+      init: () => this.initSimple(),
+      createUser: <TMeta = Record<string, unknown>>(
+        username: string,
+        password: string,
+        createOptions?: CreateUserOptions<TMeta>
+      ) => this.createSimpleUser<TMeta>(username, password, createOptions),
+      authenticate: <TMeta = Record<string, unknown>>(username: string, password: string) =>
+        this.authenticateSimple<TMeta>(username, password),
+      getUser: <TMeta = Record<string, unknown>>(username: string) =>
+        this.getSimpleUser<TMeta>(username)
+    };
   }
 
-  async initAuth(): Promise<void> {
+  private async ensureInitialized(): Promise<void> {
     if (!this.initPromise) {
       this.initPromise = this.initialize().catch((error: unknown) => {
         this.initPromise = null;
@@ -50,12 +69,21 @@ export class CStoreAuth {
     await this.initPromise;
   }
 
-  async createUser<TMeta = Record<string, unknown>>(
+  async initSimple(): Promise<void> {
+    await this.ensureInitialized();
+  }
+
+  /** @deprecated Use simple.init() */
+  async initAuth(): Promise<void> {
+    await this.initSimple();
+  }
+
+  async createSimpleUser<TMeta = Record<string, unknown>>(
     username: string,
     password: string,
     options: CreateUserOptions<TMeta> = {}
   ): Promise<PublicUser<TMeta>> {
-    await this.initAuth();
+    await this.ensureInitialized();
     const config = this.requireConfig();
     const canonical = canonicalizeUsername(username);
 
@@ -76,11 +104,20 @@ export class CStoreAuth {
     return toPublicUser(canonical.canonical, record);
   }
 
-  async authenticate<TMeta = Record<string, unknown>>(
+  /** @deprecated Use simple.createUser() */
+  async createUser<TMeta = Record<string, unknown>>(
+    username: string,
+    password: string,
+    options: CreateUserOptions<TMeta> = {}
+  ): Promise<PublicUser<TMeta>> {
+    return this.createSimpleUser<TMeta>(username, password, options);
+  }
+
+  async authenticateSimple<TMeta = Record<string, unknown>>(
     username: string,
     password: string
   ): Promise<PublicUser<TMeta>> {
-    await this.initAuth();
+    await this.ensureInitialized();
     const config = this.requireConfig();
     const canonical = canonicalizeUsername(username);
 
@@ -122,10 +159,18 @@ export class CStoreAuth {
     return toPublicUser<TMeta>(canonical.canonical, record);
   }
 
-  async getUser<TMeta = Record<string, unknown>>(
+  /** @deprecated Use simple.authenticate() */
+  async authenticate<TMeta = Record<string, unknown>>(
+    username: string,
+    password: string
+  ): Promise<PublicUser<TMeta>> {
+    return this.authenticateSimple<TMeta>(username, password);
+  }
+
+  async getSimpleUser<TMeta = Record<string, unknown>>(
     username: string
   ): Promise<PublicUser<TMeta> | null> {
-    await this.initAuth();
+    await this.ensureInitialized();
     const config = this.requireConfig();
     const canonical = canonicalizeUsername(username);
     const raw = await this.client.hget(config.hkey, canonical.canonical);
@@ -138,6 +183,13 @@ export class CStoreAuth {
     return toPublicUser<TMeta>(canonical.canonical, record);
   }
 
+  /** @deprecated Use simple.getUser() */
+  async getUser<TMeta = Record<string, unknown>>(
+    username: string
+  ): Promise<PublicUser<TMeta> | null> {
+    return this.getSimpleUser<TMeta>(username);
+  }
+
   private async initialize(): Promise<void> {
     const { hkey, secret } = resolveAuthEnv(this.overrides);
     this.config = { hkey, secret };
@@ -147,7 +199,7 @@ export class CStoreAuth {
 
   private requireConfig(): Config {
     if (!this.config) {
-      throw new AuthInitError('CStoreAuth is not initialized. Call initAuth() before using it.');
+      throw new AuthInitError('CStoreAuth is not initialized. Call simple.init() before using it.');
     }
     return this.config;
   }

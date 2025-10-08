@@ -30,9 +30,9 @@ describe('CStoreAuth', () => {
 
   it('bootstraps the admin user when missing', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    const admin = await auth.getUser('admin');
+    const admin = await auth.simple.getUser('admin');
     expect(admin).not.toBeNull();
     expect(admin?.role).toBe('admin');
 
@@ -44,7 +44,7 @@ describe('CStoreAuth', () => {
 
   it('does not require bootstrap password when admin already exists', async () => {
     const firstAuth = createAuth();
-    await firstAuth.initAuth();
+    await firstAuth.simple.init();
 
     const originalRecord = await cstore.hget(BASE_ENV.hkey, 'admin');
     expect(originalRecord).toBeTruthy();
@@ -53,7 +53,7 @@ describe('CStoreAuth', () => {
     setEnv({ hkey: BASE_ENV.hkey, secret: BASE_ENV.secret });
 
     const secondAuth = createAuth();
-    await secondAuth.initAuth();
+    await secondAuth.simple.init();
 
     const recordAfter = await cstore.hget(BASE_ENV.hkey, 'admin');
     expect(recordAfter).toBe(originalRecord);
@@ -64,15 +64,15 @@ describe('CStoreAuth', () => {
     setEnv({ hkey: BASE_ENV.hkey, secret: BASE_ENV.secret });
 
     const auth = createAuth();
-    await expect(auth.initAuth()).rejects.toBeInstanceOf(EnvVarMissingError);
+    await expect(auth.simple.init()).rejects.toBeInstanceOf(EnvVarMissingError);
   });
 
   it('creates users with metadata and returns public view', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
     const metadata = { email: 'alice@example.com' };
-    const user = await auth.createUser('Alice', 'Passw0rd!', { metadata });
+    const user = await auth.simple.createUser('Alice', 'Passw0rd!', { metadata });
     metadata.email = 'mutated@example.com';
 
     expect(user.username).toBe('alice');
@@ -91,59 +91,61 @@ describe('CStoreAuth', () => {
 
   it('rejects duplicate usernames', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    await auth.createUser('Bob', 'AnotherPass1');
-    await expect(auth.createUser('bob', 'AnotherPass1')).rejects.toBeInstanceOf(UserExistsError);
+    await auth.simple.createUser('Bob', 'AnotherPass1');
+    await expect(auth.simple.createUser('bob', 'AnotherPass1')).rejects.toBeInstanceOf(
+      UserExistsError
+    );
   });
 
   it('canonicalizes usernames during authentication', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    await auth.createUser('Charlie', 'S3cureP@ss');
+    await auth.simple.createUser('Charlie', 'S3cureP@ss');
 
-    const user = await auth.authenticate('CHARLIE', 'S3cureP@ss');
+    const user = await auth.simple.authenticate('CHARLIE', 'S3cureP@ss');
     expect(user.username).toBe('charlie');
   });
 
   it('rejects invalid credentials', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    await auth.createUser('Dana', 'StrongPass1');
+    await auth.simple.createUser('Dana', 'StrongPass1');
 
-    await expect(auth.authenticate('dana', 'wrong-pass')).rejects.toBeInstanceOf(
+    await expect(auth.simple.authenticate('dana', 'wrong-pass')).rejects.toBeInstanceOf(
       InvalidCredentialsError
     );
-    await expect(auth.authenticate('unknown', 'anything')).rejects.toBeInstanceOf(
+    await expect(auth.simple.authenticate('unknown', 'anything')).rejects.toBeInstanceOf(
       InvalidCredentialsError
     );
   });
 
   it('validates username input', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    await expect(auth.createUser('??bad??', 'Pass123!')).rejects.toBeInstanceOf(
+    await expect(auth.simple.createUser('??bad??', 'Pass123!')).rejects.toBeInstanceOf(
       InvalidUsernameError
     );
   });
 
   it('validates roles', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
     await expect(
-      auth.createUser('eve', 'Pass123!', { role: 'superuser' as unknown as 'admin' })
+      auth.simple.createUser('eve', 'Pass123!', { role: 'superuser' as unknown as 'admin' })
     ).rejects.toBeInstanceOf(InvalidUserRoleError);
   });
 
   it('returns null for missing users', async () => {
     const auth = createAuth();
-    await auth.initAuth();
+    await auth.simple.init();
 
-    const user = await auth.getUser('missing');
+    const user = await auth.simple.getUser('missing');
     expect(user).toBeNull();
   });
 });

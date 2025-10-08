@@ -60,3 +60,17 @@ export interface CreateUserOptions<TMeta = Record<string, unknown>> {
   role?: UserRole;
   metadata?: TMeta;
 }
+
+export interface SimpleAuthApi {
+  init(): Promise<void>;
+  createUser<TMeta = Record<string, unknown>>(
+    username: string,
+    password: string,
+    options?: CreateUserOptions<TMeta>
+  ): Promise<PublicUser<TMeta>>;
+  authenticate<TMeta = Record<string, unknown>>(
+    username: string,
+    password: string
+  ): Promise<PublicUser<TMeta>>;
+  getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
+}

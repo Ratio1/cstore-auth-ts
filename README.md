@@ -1,6 +1,6 @@
 # @ratio1/cstore-auth-ts
 
-Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [edge-node-client](https://github.com/Ratio1/edge-node-client) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
+Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [@ratio1/edge-node-client](https://github.com/Ratio1/edge-node-client) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
 
 ## Features
 
@@ -32,13 +32,13 @@ npm install @ratio1/cstore-auth-ts
 import { CStoreAuth } from '@ratio1/cstore-auth-ts';
 
 const auth = new CStoreAuth();
-await auth.initAuth();
+await auth.simple.init();
 
-await auth.createUser('alice', 'S3curePassw0rd', {
+await auth.simple.createUser('alice', 'S3curePassw0rd', {
   metadata: { email: 'alice@example.com' }
 });
 
-const user = await auth.authenticate('alice', 'S3curePassw0rd');
+const user = await auth.simple.authenticate('alice', 'S3curePassw0rd');
 console.log(user);
 // → { username: 'alice', role: 'user', metadata: { email: 'alice@example.com' }, createdAt: '...', updatedAt: '...', type: 'simple' }
 ```
@@ -58,16 +58,36 @@ interface CStoreAuthOptions {
 class CStoreAuth {
   constructor(opts?: CStoreAuthOptions);
 
+  simple: {
+    init(): Promise<void>;
+    createUser<TMeta = Record<string, unknown>>(
+      username: string,
+      password: string,
+      opts?: CreateUserOptions<TMeta>
+    ): Promise<PublicUser<TMeta>>;
+    authenticate<TMeta = Record<string, unknown>>(
+      username: string,
+      password: string
+    ): Promise<PublicUser<TMeta>>;
+    getUser<TMeta = Record<string, unknown>>(
+      username: string
+    ): Promise<PublicUser<TMeta> | null>;
+  };
+
+  /** @deprecated Use simple.init() */
   initAuth(): Promise<void>;
+  /** @deprecated Use simple.createUser() */
   createUser<TMeta = Record<string, unknown>>(
     username: string,
     password: string,
     opts?: CreateUserOptions<TMeta>
   ): Promise<PublicUser<TMeta>>;
+  /** @deprecated Use simple.authenticate() */
   authenticate<TMeta = Record<string, unknown>>(
     username: string,
     password: string
   ): Promise<PublicUser<TMeta>>;
+  /** @deprecated Use simple.getUser() */
   getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
 }
 ```

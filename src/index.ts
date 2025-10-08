@@ -9,7 +9,8 @@ export type {
   AnyPasswordRecord,
   SupportedPasswordAlgo,
   Argon2idParams,
-  ScryptParams
+  ScryptParams,
+  SimpleAuthApi
 } from './types';
 export type { CStoreLikeClient, Ratio1EdgeNodeClientOptions } from './cstore';
 export { createDefaultCStoreClient } from './cstore';

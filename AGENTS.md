@@ -1,7 +1,7 @@
 # Collaboration Blueprint
 
 ## Repo Architect
-- Confirmed against `edge-node-client@0.3.8`: CStore service methods accept `{ hkey, key }` objects. `CStoreClientAdapter` hides that detail and exposes `hget`, `hset`, `hgetAll` signatures used throughout the package.
+- Confirmed against `@ratio1/edge-node-client@1.1.4`: CStore service methods accept `{ hkey, key }` objects. `CStoreClientAdapter` hides that detail and exposes `hget`, `hset`, `hgetAll` signatures used throughout the package.
 - Builds produce ESM, CJS, and declaration bundles via `tsup`. Entry point is `src/index.ts` and only exports typed surface area for tree-shaking.
 - `tsconfig.json` enables strict mode and preserves module resolution for Node 18+. Source maps are emitted for debugging consumers.
 
