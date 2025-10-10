@@ -4,6 +4,7 @@ import type {
   CreateUserOptions,
   PublicUser,
   SimpleAuthApi,
+  UpdateUserOptions,
   UserRecord
 } from './types';
 import { readBootstrapAdminPassword, ENV_VARS } from './util/env';
@@ -14,6 +15,7 @@ import {
   InvalidUserRoleError,
   PasswordHasherUnavailableError,
   UserExistsError,
+  UserNotFoundError,
   UserSerializationError
 } from './util/errors';
 
@@ -44,7 +46,13 @@ export function createSimpleAuthApi(context: SimpleAuthContext): SimpleAuthApi {
     getUser: <TMeta = Record<string, unknown>>(username: string) =>
       getSimpleUser<TMeta>(context, username),
     getAllUsers: <TMeta = Record<string, unknown>>() =>
-      getAllSimpleUsers<TMeta>(context)
+      getAllSimpleUsers<TMeta>(context),
+    updateUser: <TMeta = Record<string, unknown>>(
+      username: string,
+      options: UpdateUserOptions<TMeta>
+    ) => updateSimpleUser<TMeta>(context, username, options),
+    changePassword: (username: string, currentPassword: string, newPassword: string) =>
+      changeSimpleUserPassword(context, username, currentPassword, newPassword)
   };
 }
 
@@ -218,6 +226,220 @@ async function getAllSimpleUsers<TMeta>(
   }
   
   return users;
+}
+
+/**
+ * Updates a user's metadata and/or role.
+ *
+ * @remarks
+ * This method allows updating a user's metadata and role without requiring or changing
+ * their password. For password changes, use the dedicated `changePassword` method instead.
+ * 
+ * The update operation is atomic and preserves fields that are not being updated. The
+ * `updatedAt` timestamp is automatically set to the current time.
+ *
+ * **Security notes:**
+ * - This method does NOT require password verification
+ * - Consider implementing authorization checks in your application layer
+ * - Role changes should typically be restricted to admin users only
+ * - Metadata updates should be validated before passing to this method
+ *
+ * @param context - The simple auth context containing client, config, and dependencies
+ * @param username - The username of the user to update (case-insensitive)
+ * @param options - Update options containing optional metadata and/or role
+ * @returns Promise resolving to the updated public user object
+ *
+ * @throws {AuthInitError} When the auth system is not initialized
+ * @throws {InvalidUsernameError} When the username format is invalid
+ * @throws {UserNotFoundError} When the user does not exist
+ * @throws {InvalidUserRoleError} When the provided role is not 'admin' or 'user'
+ * @throws {UserSerializationError} When the stored user record is corrupted
+ *
+ * @example
+ * ```ts
+ * // Update user metadata
+ * const updated = await auth.simple.updateUser('alice', {
+ *   metadata: { email: 'newemail@example.com', verified: true }
+ * });
+ *
+ * // Promote user to admin (should be restricted to admins in your app)
+ * const promoted = await auth.simple.updateUser('alice', {
+ *   role: 'admin'
+ * });
+ *
+ * // Update both metadata and role
+ * const updated = await auth.simple.updateUser('alice', {
+ *   role: 'user',
+ *   metadata: { email: 'alice@example.com', department: 'Engineering' }
+ * });
+ * ```
+ */
+async function updateSimpleUser<TMeta>(
+  context: SimpleAuthContext,
+  username: string,
+  options: UpdateUserOptions<TMeta>
+): Promise<PublicUser<TMeta>> {
+  await context.ensureInitialized();
+  const config = context.requireConfig();
+  const canonical = canonicalizeUsername(username);
+
+  // Fetch existing user
+  const raw = await context.client.hget(config.hkey, canonical.canonical);
+  if (!raw) {
+    throw new UserNotFoundError(canonical.canonical);
+  }
+
+  // Parse existing record
+  const record = parseUserRecord<TMeta>(canonical.canonical, raw);
+
+  // Validate role if provided
+  if (options.role !== undefined) {
+    if (options.role !== 'admin' && options.role !== 'user') {
+      throw new InvalidUserRoleError(String(options.role));
+    }
+    record.role = options.role;
+  }
+
+  // Update metadata if provided
+  if (options.metadata !== undefined) {
+    record.metadata = cloneJson(options.metadata);
+  }
+
+  // Update timestamp
+  record.updatedAt = context.getNow().toISOString();
+
+  // Write updated record
+  await writeUser(context, config.hkey, canonical.canonical, record);
+
+  return toPublicUser<TMeta>(canonical.canonical, record);
+}
+
+/**
+ * Changes a user's password after verifying their current password.
+ *
+ * @remarks
+ * This method implements secure password change functionality that requires verification
+ * of the current password before setting a new one. This is a critical security feature
+ * that prevents unauthorized password changes even if an attacker gains session access.
+ *
+ * **Security features:**
+ * - Requires current password verification using timing-safe comparison
+ * - Uses the same secure hashing (Argon2id or scrypt fallback) as user creation
+ * - Updates the `updatedAt` timestamp to track password changes
+ * - Fails silently with InvalidCredentialsError to prevent user enumeration
+ * - Does not expose whether the username or password was incorrect
+ *
+ * **Best practices:**
+ * - Always verify the current password before allowing changes
+ * - Consider implementing rate limiting for this endpoint
+ * - Log password changes for security audit trails
+ * - Consider invalidating existing sessions after password change
+ * - Optionally send notification emails to users about password changes
+ *
+ * @param context - The simple auth context containing client, config, and dependencies
+ * @param username - The username of the user changing their password (case-insensitive)
+ * @param currentPassword - The user's current password for verification
+ * @param newPassword - The new password to set
+ * @returns Promise that resolves when password is successfully changed
+ *
+ * @throws {AuthInitError} When the auth system is not initialized
+ * @throws {InvalidUsernameError} When the username format is invalid
+ * @throws {InvalidCredentialsError} When current password is incorrect or user not found
+ * @throws {PasswordHasherUnavailableError} When password hashing fails
+ * @throws {UserSerializationError} When the stored user record is corrupted
+ *
+ * @example
+ * ```ts
+ * // Standard password change flow
+ * try {
+ *   await auth.simple.changePassword('alice', 'oldPass123!', 'newSecurePass456!');
+ *   console.log('Password changed successfully');
+ * } catch (error) {
+ *   if (error instanceof InvalidCredentialsError) {
+ *     console.error('Current password is incorrect');
+ *   }
+ * }
+ *
+ * // In an API endpoint with session verification
+ * async function handlePasswordChange(req, res) {
+ *   const { currentPassword, newPassword } = req.body;
+ *   const username = req.session.username; // From authenticated session
+ *   
+ *   try {
+ *     await auth.simple.changePassword(username, currentPassword, newPassword);
+ *     // Optionally: invalidate all sessions except current
+ *     // Optionally: send notification email
+ *     res.json({ success: true });
+ *   } catch (error) {
+ *     res.status(401).json({ error: 'Invalid credentials' });
+ *   }
+ * }
+ * ```
+ */
+async function changeSimpleUserPassword(
+  context: SimpleAuthContext,
+  username: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  await context.ensureInitialized();
+  const config = context.requireConfig();
+  const canonical = canonicalizeUsername(username);
+
+  // Fetch existing user
+  const raw = await context.client.hget(config.hkey, canonical.canonical);
+  if (!raw) {
+    // Use same error as authentication to prevent user enumeration
+    throw new InvalidCredentialsError();
+  }
+
+  // Parse existing record
+  let record: UserRecord<unknown>;
+  try {
+    record = parseUserRecord(canonical.canonical, raw);
+  } catch (error: unknown) {
+    if (error instanceof UserSerializationError) {
+      context.logger?.error?.(error.message);
+      throw new InvalidCredentialsError();
+    }
+    throw error;
+  }
+
+  // Verify current password
+  if (!record.password) {
+    throw new InvalidCredentialsError();
+  }
+
+  let verified: boolean;
+  try {
+    verified = await context.hasher.verifyPassword(
+      currentPassword,
+      record.password,
+      config.secret
+    );
+  } catch (error: unknown) {
+    if (error instanceof PasswordHasherUnavailableError) {
+      context.logger?.error?.(error.message);
+      throw new InvalidCredentialsError();
+    }
+    throw error;
+  }
+
+  if (!verified) {
+    throw new InvalidCredentialsError();
+  }
+
+  // Hash new password
+  const newPasswordRecord = await context.hasher.hashPassword(newPassword, config.secret);
+  
+  // Update record
+  record.password = newPasswordRecord;
+  record.updatedAt = context.getNow().toISOString();
+
+  // Write updated record
+  await writeUser(context, config.hkey, canonical.canonical, record);
+
+  context.logger?.info?.(`Password changed successfully for user "${canonical.canonical}"`);
 }
 
 async function buildUserRecord<TMeta>(

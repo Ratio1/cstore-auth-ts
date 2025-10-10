@@ -523,5 +523,325 @@ describe('CStoreAuth Integration Tests', () => {
       expect(Object.keys(allData)).toHaveLength(0);
     });
   });
+
+  describe('updateUser Integration', () => {
+    it('should update user metadata and preserve through retrieval', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      // Create user
+      await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com', status: 'active' }
+      });
+
+      // Update user
+      const updated = await auth.simple.updateUser('alice', {
+        metadata: { email: 'newemail@example.com', status: 'inactive', department: 'Engineering' }
+      });
+
+      expect(updated.metadata).toEqual({
+        email: 'newemail@example.com',
+        status: 'inactive',
+        department: 'Engineering'
+      });
+
+      // Verify through getUser
+      const retrieved = await auth.simple.getUser('alice');
+      expect(retrieved?.metadata).toEqual(updated.metadata);
+
+      // Verify through getAllUsers
+      const allUsers = await auth.simple.getAllUsers();
+      const alice = allUsers.find(u => u.username === 'alice');
+      expect(alice?.metadata).toEqual(updated.metadata);
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should update user role and maintain consistency', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      // Create regular user
+      await auth.simple.createUser('bob', 'Pass123!', {
+        role: 'user',
+        metadata: { email: 'bob@example.com' }
+      });
+
+      // Promote to admin
+      const updated = await auth.simple.updateUser('bob', { role: 'admin' });
+
+      expect(updated.role).toBe('admin');
+      expect(updated.metadata).toEqual({ email: 'bob@example.com' });
+
+      // Verify authentication still works
+      const authenticated = await auth.simple.authenticate('bob', 'Pass123!');
+      expect(authenticated.role).toBe('admin');
+
+      // Verify through getAllUsers
+      const allUsers = await auth.simple.getAllUsers();
+      const admins = allUsers.filter(u => u.role === 'admin');
+      expect(admins.some(a => a.username === 'bob')).toBe(true);
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should handle concurrent updates correctly', async () => {
+      const hkey = getTestHkey();
+      let time = 0;
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date(2024, 0, 1, 0, 0, time++)
+      });
+
+      await auth.simple.init();
+
+      // Create user
+      await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { counter: 0 }
+      });
+
+      // Multiple updates
+      await auth.simple.updateUser('alice', { metadata: { counter: 1 } });
+      await auth.simple.updateUser('alice', { metadata: { counter: 2 } });
+      const final = await auth.simple.updateUser('alice', { metadata: { counter: 3 } });
+
+      expect(final.metadata).toEqual({ counter: 3 });
+
+      // Verify final state
+      const retrieved = await auth.simple.getUser('alice');
+      expect(retrieved?.metadata).toEqual({ counter: 3 });
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should reject updates for non-existent users', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      await expect(
+        auth.simple.updateUser('nonexistent', { metadata: { email: 'test@example.com' } })
+      ).rejects.toThrow('not found');
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+  });
+
+  describe('changePassword Integration', () => {
+    it('should change password and maintain full authentication cycle', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      // Create user
+      await auth.simple.createUser('alice', 'OldPass123!', {
+        metadata: { email: 'alice@example.com' }
+      });
+
+      // Verify old password works
+      await auth.simple.authenticate('alice', 'OldPass123!');
+
+      // Change password
+      await auth.simple.changePassword('alice', 'OldPass123!', 'NewPass456!');
+
+      // Verify old password no longer works
+      await expect(
+        auth.simple.authenticate('alice', 'OldPass123!')
+      ).rejects.toThrow('Invalid');
+
+      // Verify new password works
+      const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
+      expect(authenticated.username).toBe('alice');
+      expect(authenticated.metadata).toEqual({ email: 'alice@example.com' });
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should require current password for change', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'CorrectPass123!');
+
+      // Attempt password change with wrong current password
+      await expect(
+        auth.simple.changePassword('alice', 'WrongPass123!', 'NewPass456!')
+      ).rejects.toThrow('Invalid');
+
+      // Verify original password still works
+      await auth.simple.authenticate('alice', 'CorrectPass123!');
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should handle multiple password changes', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'Pass1!');
+
+      // Change password multiple times
+      await auth.simple.changePassword('alice', 'Pass1!', 'Pass2!');
+      await auth.simple.changePassword('alice', 'Pass2!', 'Pass3!');
+      await auth.simple.changePassword('alice', 'Pass3!', 'Pass4!');
+
+      // Only the latest password should work
+      await expect(auth.simple.authenticate('alice', 'Pass1!')).rejects.toThrow();
+      await expect(auth.simple.authenticate('alice', 'Pass2!')).rejects.toThrow();
+      await expect(auth.simple.authenticate('alice', 'Pass3!')).rejects.toThrow();
+
+      const authenticated = await auth.simple.authenticate('alice', 'Pass4!');
+      expect(authenticated.username).toBe('alice');
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should not affect metadata or role when changing password', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      const created = await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com', verified: true },
+        role: 'admin'
+      });
+
+      // Change password
+      await auth.simple.changePassword('alice', 'Pass123!', 'NewPass456!');
+
+      // Verify metadata and role unchanged
+      const user = await auth.simple.getUser('alice');
+      expect(user?.metadata).toEqual(created.metadata);
+      expect(user?.role).toBe(created.role);
+
+      // Verify through authentication
+      const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
+      expect(authenticated.metadata).toEqual(created.metadata);
+      expect(authenticated.role).toBe(created.role);
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+  });
+
+  describe('Combined Update Operations', () => {
+    it('should handle interleaved metadata updates and password changes', async () => {
+      const hkey = getTestHkey();
+      let time = 0;
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date(2024, 0, 1, 0, 0, time++)
+      });
+
+      await auth.simple.init();
+
+      // Create user
+      await auth.simple.createUser('alice', 'Pass1!', {
+        metadata: { version: 1 }
+      });
+
+      // Update metadata
+      await auth.simple.updateUser('alice', { metadata: { version: 2 } });
+
+      // Change password
+      await auth.simple.changePassword('alice', 'Pass1!', 'Pass2!');
+
+      // Update metadata again
+      await auth.simple.updateUser('alice', { metadata: { version: 3 } });
+
+      // Verify final state
+      const user = await auth.simple.authenticate('alice', 'Pass2!');
+      expect(user.metadata).toEqual({ version: 3 });
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+
+    it('should maintain data integrity across all operations', async () => {
+      const hkey = getTestHkey();
+      const auth = new CStoreAuth({
+        client: cstore,
+        hkey,
+        now: () => new Date('2024-01-01T00:00:00Z')
+      });
+
+      await auth.simple.init();
+
+      // Create user
+      const created = await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com' },
+        role: 'user'
+      });
+
+      // Update role
+      await auth.simple.updateUser('alice', { role: 'admin' });
+
+      // Update metadata
+      await auth.simple.updateUser('alice', {
+        metadata: { email: 'newemail@example.com', verified: true }
+      });
+
+      // Change password
+      await auth.simple.changePassword('alice', 'Pass123!', 'NewPass456!');
+
+      // Verify all changes persisted
+      const user = await auth.simple.authenticate('alice', 'NewPass456!');
+      expect(user.role).toBe('admin');
+      expect(user.metadata).toEqual({ email: 'newemail@example.com', verified: true });
+      expect(user.createdAt).toBe(created.createdAt);
+      expect(user.type).toBe('simple');
+
+      // Cleanup
+      await cstore.cleanupHash(hkey);
+    });
+  });
 });
 

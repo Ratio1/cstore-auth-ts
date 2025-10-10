@@ -61,6 +61,11 @@ export interface CreateUserOptions<TMeta = Record<string, unknown>> {
   metadata?: TMeta;
 }
 
+export interface UpdateUserOptions<TMeta = Record<string, unknown>> {
+  role?: UserRole;
+  metadata?: TMeta;
+}
+
 export interface SimpleAuthApi {
   init(): Promise<void>;
   createUser<TMeta = Record<string, unknown>>(
@@ -74,4 +79,9 @@ export interface SimpleAuthApi {
   ): Promise<PublicUser<TMeta>>;
   getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
   getAllUsers<TMeta = Record<string, unknown>>(): Promise<PublicUser<TMeta>[]>;
+  updateUser<TMeta = Record<string, unknown>>(
+    username: string,
+    options: UpdateUserOptions<TMeta>
+  ): Promise<PublicUser<TMeta>>;
+  changePassword(username: string, currentPassword: string, newPassword: string): Promise<void>;
 }
