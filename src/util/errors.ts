@@ -2,6 +2,7 @@ export type AuthErrorCode =
   | 'ENV_VAR_MISSING'
   | 'AUTH_INIT_FAILED'
   | 'USER_EXISTS'
+  | 'USER_NOT_FOUND'
   | 'INVALID_USERNAME'
   | 'INVALID_PASSWORD'
   | 'INVALID_USER_ROLE'
@@ -34,6 +35,12 @@ export class AuthInitError extends AuthError {
 export class UserExistsError extends AuthError {
   constructor(username: string) {
     super(`User "${username}" already exists.`, 'USER_EXISTS');
+  }
+}
+
+export class UserNotFoundError extends AuthError {
+  constructor(username: string) {
+    super(`User "${username}" not found.`, 'USER_NOT_FOUND');
   }
 }
 

@@ -6,7 +6,8 @@ import {
   InvalidCredentialsError,
   InvalidUserRoleError,
   InvalidUsernameError,
-  UserExistsError
+  UserExistsError,
+  UserNotFoundError
 } from '../src/util/errors';
 import { MemoryCStore } from './fixtures/memory-cstore';
 
@@ -255,6 +256,203 @@ describe('CStoreAuth', () => {
     expect(alice?.metadata.email).toBe('alice@example.com');
     expect(alice?.metadata.verified).toBe(true);
     expect(alice?.metadata.age).toBe(30);
+  });
+
+  describe('updateUser', () => {
+    it('updates user metadata', async () => {
+      let time = 0;
+      const auth = new CStoreAuth({
+        client: cstore,
+        now: () => new Date(2024, 0, 1, 0, 0, time++)
+      });
+      await auth.simple.init();
+
+      const created = await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com' }
+      });
+
+      const updated = await auth.simple.updateUser('alice', {
+        metadata: { email: 'newemail@example.com', verified: true }
+      });
+
+      expect(updated.username).toBe('alice');
+      expect(updated.metadata).toEqual({ email: 'newemail@example.com', verified: true });
+      expect(updated.updatedAt).not.toBe(created.updatedAt);
+      expect(updated.createdAt).toBe(created.createdAt);
+    });
+
+    it('updates user role', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'Pass123!', { role: 'user' });
+
+      const updated = await auth.simple.updateUser('alice', { role: 'admin' });
+
+      expect(updated.role).toBe('admin');
+    });
+
+    it('updates both metadata and role', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'old@example.com' },
+        role: 'user'
+      });
+
+      const updated = await auth.simple.updateUser('alice', {
+        metadata: { email: 'new@example.com', department: 'Engineering' },
+        role: 'admin'
+      });
+
+      expect(updated.role).toBe('admin');
+      expect(updated.metadata).toEqual({ email: 'new@example.com', department: 'Engineering' });
+    });
+
+    it('preserves fields that are not updated', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      const created = await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com', age: 30 },
+        role: 'user'
+      });
+
+      // Update only metadata, role should remain unchanged
+      const updated = await auth.simple.updateUser('alice', {
+        metadata: { email: 'updated@example.com' }
+      });
+
+      expect(updated.role).toBe('user'); // Still 'user'
+      expect(updated.metadata).toEqual({ email: 'updated@example.com' });
+      expect(updated.createdAt).toBe(created.createdAt);
+    });
+
+    it('throws UserNotFoundError for non-existent users', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await expect(
+        auth.simple.updateUser('nonexistent', { metadata: { email: 'test@example.com' } })
+      ).rejects.toBeInstanceOf(UserNotFoundError);
+    });
+
+    it('validates role on update', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'Pass123!');
+
+      await expect(
+        auth.simple.updateUser('alice', { role: 'superadmin' as 'admin' })
+      ).rejects.toBeInstanceOf(InvalidUserRoleError);
+    });
+
+    it('handles username case-insensitivity', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('Alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com' }
+      });
+
+      const updated = await auth.simple.updateUser('ALICE', {
+        metadata: { email: 'updated@example.com' }
+      });
+
+      expect(updated.username).toBe('alice');
+      expect(updated.metadata).toEqual({ email: 'updated@example.com' });
+    });
+  });
+
+  describe('changePassword', () => {
+    it('changes password with correct current password', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'OldPass123!');
+
+      await auth.simple.changePassword('alice', 'OldPass123!', 'NewPass456!');
+
+      // Verify old password no longer works
+      await expect(
+        auth.simple.authenticate('alice', 'OldPass123!')
+      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+
+      // Verify new password works
+      const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
+      expect(authenticated.username).toBe('alice');
+    });
+
+    it('rejects password change with incorrect current password', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('alice', 'CorrectPass123!');
+
+      await expect(
+        auth.simple.changePassword('alice', 'WrongPass123!', 'NewPass456!')
+      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+
+      // Verify original password still works
+      const authenticated = await auth.simple.authenticate('alice', 'CorrectPass123!');
+      expect(authenticated.username).toBe('alice');
+    });
+
+    it('rejects password change for non-existent user', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await expect(
+        auth.simple.changePassword('nonexistent', 'OldPass123!', 'NewPass456!')
+      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+    });
+
+    it('updates the updatedAt timestamp', async () => {
+      let time = 0;
+      const auth = new CStoreAuth({
+        client: cstore,
+        now: () => new Date(2024, 0, 1, 0, 0, time++)
+      });
+      await auth.simple.init();
+
+      const created = await auth.simple.createUser('alice', 'Pass123!');
+
+      await auth.simple.changePassword('alice', 'Pass123!', 'NewPass456!');
+
+      const user = await auth.simple.getUser('alice');
+      expect(user?.updatedAt).not.toBe(created.updatedAt);
+      expect(user?.createdAt).toBe(created.createdAt);
+    });
+
+    it('handles username case-insensitivity', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      await auth.simple.createUser('Alice', 'OldPass123!');
+
+      await auth.simple.changePassword('ALICE', 'OldPass123!', 'NewPass456!');
+
+      const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
+      expect(authenticated.username).toBe('alice');
+    });
+
+    it('does not affect user metadata or role', async () => {
+      const auth = createAuth();
+      await auth.simple.init();
+
+      const created = await auth.simple.createUser('alice', 'Pass123!', {
+        metadata: { email: 'alice@example.com' },
+        role: 'admin'
+      });
+
+      await auth.simple.changePassword('alice', 'Pass123!', 'NewPass456!');
+
+      const user = await auth.simple.getUser('alice');
+      expect(user?.metadata).toEqual(created.metadata);
+      expect(user?.role).toBe(created.role);
+    });
   });
 });
 

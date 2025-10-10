@@ -2,6 +2,7 @@ export { CStoreAuth } from './auth';
 export type {
   CStoreAuthOptions,
   CreateUserOptions,
+  UpdateUserOptions,
   PublicUser,
   UserRecord,
   UserRole,
@@ -27,5 +28,6 @@ export {
   InvalidUsernameError,
   PasswordHasherUnavailableError,
   UserExistsError,
+  UserNotFoundError,
   UserSerializationError
 } from './util/errors';
