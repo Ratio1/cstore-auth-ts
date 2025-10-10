@@ -148,6 +148,114 @@ describe('CStoreAuth', () => {
     const user = await auth.simple.getUser('missing');
     expect(user).toBeNull();
   });
+
+  it('returns all users', async () => {
+    const auth = createAuth();
+    await auth.simple.init();
+
+    // Create multiple users with different metadata
+    await auth.simple.createUser('alice', 'Pass123!', {
+      metadata: { email: 'alice@example.com' }
+    });
+    await auth.simple.createUser('bob', 'Pass456!', {
+      metadata: { email: 'bob@example.com' }
+    });
+    await auth.simple.createUser('charlie', 'Pass789!', {
+      role: 'admin',
+      metadata: { email: 'charlie@example.com' }
+    });
+
+    const users = await auth.simple.getAllUsers();
+
+    // Should include the bootstrap admin plus three created users
+    expect(users).toHaveLength(4);
+
+    // Verify admin is present
+    const admin = users.find(u => u.username === 'admin');
+    expect(admin).toBeDefined();
+    expect(admin?.role).toBe('admin');
+
+    // Verify created users
+    const alice = users.find(u => u.username === 'alice');
+    expect(alice).toBeDefined();
+    expect(alice?.role).toBe('user');
+    expect(alice?.metadata).toEqual({ email: 'alice@example.com' });
+    expect(alice?.type).toBe('simple');
+
+    const bob = users.find(u => u.username === 'bob');
+    expect(bob).toBeDefined();
+    expect(bob?.role).toBe('user');
+    expect(bob?.metadata).toEqual({ email: 'bob@example.com' });
+
+    const charlie = users.find(u => u.username === 'charlie');
+    expect(charlie).toBeDefined();
+    expect(charlie?.role).toBe('admin');
+    expect(charlie?.metadata).toEqual({ email: 'charlie@example.com' });
+
+    // Ensure no passwords are leaked
+    users.forEach(user => {
+      expect(user).not.toHaveProperty('password');
+    });
+  });
+
+  it('returns only bootstrap admin when no other users exist', async () => {
+    const emptyAuth = new CStoreAuth({
+      client: new MemoryCStore(),
+      now: () => new Date('2024-01-01T00:00:00Z'),
+      hkey: 'auth:empty',
+      secret: 'test-secret'
+    });
+
+    await emptyAuth.simple.init();
+
+    const users = await emptyAuth.simple.getAllUsers();
+    
+    // Should only have the bootstrap admin
+    expect(users).toHaveLength(1);
+    expect(users[0].username).toBe('admin');
+    expect(users[0].role).toBe('admin');
+  });
+
+  it('filters out malformed user records when getting all users', async () => {
+    const auth = createAuth();
+    await auth.simple.init();
+
+    // Create valid users
+    await auth.simple.createUser('alice', 'Pass123!');
+    await auth.simple.createUser('bob', 'Pass456!');
+
+    // Inject a malformed record directly into CStore
+    await cstore.hset(BASE_ENV.hkey, 'corrupted', 'not-valid-json');
+    await cstore.hset(BASE_ENV.hkey, 'invalid-type', JSON.stringify({ type: 'oauth' }));
+
+    const users = await auth.simple.getAllUsers();
+
+    // Should only return valid users (admin, alice, bob)
+    expect(users).toHaveLength(3);
+    expect(users.map(u => u.username).sort()).toEqual(['admin', 'alice', 'bob']);
+  });
+
+  it('preserves metadata types when getting all users', async () => {
+    interface CustomMeta {
+      email: string;
+      verified: boolean;
+      age?: number;
+    }
+
+    const auth = createAuth();
+    await auth.simple.init();
+
+    await auth.simple.createUser<CustomMeta>('alice', 'Pass123!', {
+      metadata: { email: 'alice@example.com', verified: true, age: 30 }
+    });
+
+    const users = await auth.simple.getAllUsers<CustomMeta>();
+    const alice = users.find(u => u.username === 'alice');
+
+    expect(alice?.metadata.email).toBe('alice@example.com');
+    expect(alice?.metadata.verified).toBe(true);
+    expect(alice?.metadata.age).toBe(30);
+  });
 });
 
 function createAuth(): CStoreAuth {

@@ -41,6 +41,11 @@ await auth.simple.createUser('alice', 'S3curePassw0rd', {
 const user = await auth.simple.authenticate('alice', 'S3curePassw0rd');
 console.log(user);
 // → { username: 'alice', role: 'user', metadata: { email: 'alice@example.com' }, createdAt: '...', updatedAt: '...', type: 'simple' }
+
+// Retrieve all users
+const allUsers = await auth.simple.getAllUsers();
+console.log(`Total users: ${allUsers.length}`);
+allUsers.forEach(u => console.log(`- ${u.username} (${u.role})`));
 ```
 
 ### Public API
@@ -72,6 +77,7 @@ class CStoreAuth {
     getUser<TMeta = Record<string, unknown>>(
       username: string
     ): Promise<PublicUser<TMeta> | null>;
+    getAllUsers<TMeta = Record<string, unknown>>(): Promise<PublicUser<TMeta>[]>;
   };
 
 }

@@ -73,4 +73,5 @@ export interface SimpleAuthApi {
     password: string
   ): Promise<PublicUser<TMeta>>;
   getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
+  getAllUsers<TMeta = Record<string, unknown>>(): Promise<PublicUser<TMeta>[]>;
 }
