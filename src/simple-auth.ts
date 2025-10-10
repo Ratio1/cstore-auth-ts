@@ -42,7 +42,9 @@ export function createSimpleAuthApi(context: SimpleAuthContext): SimpleAuthApi {
     authenticate: <TMeta = Record<string, unknown>>(username: string, password: string) =>
       authenticateSimpleUser<TMeta>(context, username, password),
     getUser: <TMeta = Record<string, unknown>>(username: string) =>
-      getSimpleUser<TMeta>(context, username)
+      getSimpleUser<TMeta>(context, username),
+    getAllUsers: <TMeta = Record<string, unknown>>() =>
+      getAllSimpleUsers<TMeta>(context)
   };
 }
 
@@ -160,6 +162,62 @@ async function getSimpleUser<TMeta>(
 
   const record = parseUserRecord<TMeta>(canonical.canonical, raw);
   return toPublicUser<TMeta>(canonical.canonical, record);
+}
+
+/**
+ * Retrieves all users from the CStore hash.
+ *
+ * @remarks
+ * This method fetches all user records stored in the configured hash key and transforms them
+ * into their public representation. It automatically filters out any malformed records, logging
+ * errors for records that cannot be parsed. This ensures that corrupted or invalid data does not
+ * break the entire operation.
+ *
+ * @param context - The simple auth context containing client, config, and dependencies
+ * @returns Promise resolving to an array of all valid public user objects
+ *
+ * @throws {AuthInitError} When the auth system is not initialized
+ *
+ * @example
+ * ```ts
+ * const users = await auth.simple.getAllUsers();
+ * console.log(`Total users: ${users.length}`);
+ * users.forEach(user => {
+ *   console.log(`${user.username} (${user.role})`);
+ * });
+ * ```
+ */
+async function getAllSimpleUsers<TMeta>(
+  context: SimpleAuthContext
+): Promise<PublicUser<TMeta>[]> {
+  await context.ensureInitialized();
+  const config = context.requireConfig();
+  
+  // Fetch all user records from the hash
+  const allRecords = await context.client.hgetAll(config.hkey);
+  
+  const users: PublicUser<TMeta>[] = [];
+  
+  // Parse each user record and convert to public user
+  for (const [username, rawValue] of Object.entries(allRecords)) {
+    try {
+      const record = parseUserRecord<TMeta>(username, rawValue);
+      users.push(toPublicUser<TMeta>(username, record));
+    } catch (error: unknown) {
+      // Log parsing errors but continue processing other users
+      if (error instanceof UserSerializationError) {
+        context.logger?.error?.(
+          `Failed to parse user record for "${username}": ${error.message}`
+        );
+      } else {
+        context.logger?.error?.(
+          `Unexpected error parsing user record for "${username}": ${String(error)}`
+        );
+      }
+    }
+  }
+  
+  return users;
 }
 
 async function buildUserRecord<TMeta>(

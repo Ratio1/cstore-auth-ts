@@ -1,6 +1,6 @@
 {
   "name": "@ratio1/cstore-auth-ts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -27,6 +27,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts",
+    "test:all": "npm run test && npm run test:integration",
     "docs": "typedoc",
     "release": "changeset version && pnpm install --lockfile-only && git add -A && git commit -m \"chore: version\" && changeset publish"
   },
