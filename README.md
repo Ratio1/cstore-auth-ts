@@ -41,6 +41,11 @@ await auth.simple.createUser('alice', 'S3curePassw0rd', {
 const user = await auth.simple.authenticate('alice', 'S3curePassw0rd');
 console.log(user);
 // → { username: 'alice', role: 'user', metadata: { email: 'alice@example.com' }, createdAt: '...', updatedAt: '...', type: 'simple' }
+
+// Retrieve all users
+const allUsers = await auth.simple.getAllUsers();
+console.log(`Total users: ${allUsers.length}`);
+allUsers.forEach(u => console.log(`- ${u.username} (${u.role})`));
 ```
 
 ### Public API
@@ -72,6 +77,7 @@ class CStoreAuth {
     getUser<TMeta = Record<string, unknown>>(
       username: string
     ): Promise<PublicUser<TMeta> | null>;
+    getAllUsers<TMeta = Record<string, unknown>>(): Promise<PublicUser<TMeta>[]>;
   };
 
 }
@@ -92,10 +98,27 @@ Errors are surfaced as descriptive subclasses (`EnvVarMissingError`, `AuthInitEr
 ```bash
 pnpm install
 pnpm run lint
-pnpm test
+pnpm test                  # Run unit tests
+pnpm run test:integration  # Run integration tests
+pnpm run test:all          # Run all tests
 pnpm run build
 pnpm run docs
 ```
+
+### Testing
+
+The project includes two test suites:
+
+- **Unit tests** (`test/**/*.spec.ts`): Fast, isolated tests with mocked dependencies
+- **Integration tests** (`test/integration/**/*.integration.spec.ts`): Complete workflow tests with realistic cleanup patterns
+
+Integration tests follow best practices including:
+- Cleanup before and after each test (setting values to null before deletion)
+- Isolated test environments with unique hash keys
+- Serial execution to avoid race conditions
+- Extended timeouts for password hashing operations
+
+See `test/integration/README.md` for detailed integration testing documentation.
 
 Typedoc emits HTML documentation to `docs/`. GitHub Actions (see `.github/workflows/ci.yml`) runs linting, type-checking, tests, build, and docs generation on Node.js 18 and 20.
 
