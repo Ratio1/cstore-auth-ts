@@ -13,7 +13,7 @@ export type {
   ScryptParams,
   SimpleAuthApi
 } from './types';
-export type { CStoreLikeClient, Ratio1EdgeNodeClientOptions } from './cstore';
+export type { CStoreLikeClient, Ratio1SdkOptions } from './cstore';
 export { createDefaultCStoreClient } from './cstore';
 export type { PasswordHasher } from './hasher';
 export { createPasswordHasher } from './hasher';

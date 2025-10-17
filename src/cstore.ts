@@ -1,6 +1,6 @@
-import { Ratio1EdgeNodeClient, type Ratio1EdgeNodeClientOptions } from '@ratio1/edge-node-client';
+import { Ratio1Sdk, type Ratio1SdkOptions } from '@ratio1/ratio1-sdk-ts';
 
-type CStoreService = Ratio1EdgeNodeClient['cstore'];
+type CStoreService = Ratio1Sdk['cstore'];
 
 /**
  * Minimal surface we rely on for interacting with CStore hashes. The official client returns
@@ -12,10 +12,8 @@ export interface CStoreLikeClient {
   hgetAll(hkey: string): Promise<Record<string, string>>;
 }
 
-export function createDefaultCStoreClient(
-  options?: Ratio1EdgeNodeClientOptions
-): CStoreLikeClient {
-  const client = new Ratio1EdgeNodeClient(options);
+export function createDefaultCStoreClient(options?: Ratio1SdkOptions): CStoreLikeClient {
+  const client = new Ratio1Sdk(options);
   return new CStoreClientAdapter(client.cstore);
 }
 
@@ -24,7 +22,7 @@ class CStoreClientAdapter implements CStoreLikeClient {
 
   async hget(hkey: string, key: string): Promise<string | null> {
     try {
-      // @ratio1/edge-node-client exports hget({ hkey, key })
+      // @ratio1/ratio1-sdk-ts exports hget({ hkey, key })
       const value = await this.service.hget({ hkey, key });
       if (value === undefined || value === null) {
         return null;
@@ -42,12 +40,12 @@ class CStoreClientAdapter implements CStoreLikeClient {
   }
 
   async hset(hkey: string, key: string, value: string): Promise<void> {
-    // @ratio1/edge-node-client exports hset({ hkey, key, value }) and resolves to boolean
+    // @ratio1/ratio1-sdk-ts exports hset({ hkey, key, value }) and resolves to boolean
     await this.service.hset({ hkey, key, value });
   }
 
   async hgetAll(hkey: string): Promise<Record<string, string>> {
-    // @ratio1/edge-node-client exports hgetall({ hkey }) returning either an object map or array pairs
+    // @ratio1/ratio1-sdk-ts exports hgetall({ hkey }) returning either an object map or array pairs
     const raw = await this.service.hgetall({ hkey });
     if (!raw) {
       return {};
@@ -82,4 +80,4 @@ function isNotFoundError(error: unknown): boolean {
   return maybeResponseCode === 404;
 }
 
-export type { Ratio1EdgeNodeClientOptions };
+export type { Ratio1SdkOptions };

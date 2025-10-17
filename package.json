@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^1.8.0",
-    "@ratio1/edge-node-client": "^1.1.4"
+    "@ratio1/ratio1-sdk-ts": "^1.1.6"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.1",

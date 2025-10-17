@@ -1,6 +1,6 @@
 # @ratio1/cstore-auth-ts
 
-Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [@ratio1/edge-node-client](https://github.com/Ratio1/edge-node-client) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
+Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [@ratio1/ratio1-sdk-ts](https://github.com/Ratio1/ratio1-sdk-ts) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
 
 ## Features
 
@@ -45,7 +45,7 @@ console.log(user);
 // Retrieve all users
 const allUsers = await auth.simple.getAllUsers();
 console.log(`Total users: ${allUsers.length}`);
-allUsers.forEach(u => console.log(`- ${u.username} (${u.role})`));
+allUsers.forEach((u) => console.log(`- ${u.username} (${u.role})`));
 
 // Update user metadata or role
 // IMPORTANT: Implement authorization checks in your application layer!
@@ -84,21 +84,14 @@ class CStoreAuth {
       username: string,
       password: string
     ): Promise<PublicUser<TMeta>>;
-    getUser<TMeta = Record<string, unknown>>(
-      username: string
-    ): Promise<PublicUser<TMeta> | null>;
+    getUser<TMeta = Record<string, unknown>>(username: string): Promise<PublicUser<TMeta> | null>;
     getAllUsers<TMeta = Record<string, unknown>>(): Promise<PublicUser<TMeta>[]>;
     updateUser<TMeta = Record<string, unknown>>(
       username: string,
       opts: UpdateUserOptions<TMeta>
     ): Promise<PublicUser<TMeta>>;
-    changePassword(
-      username: string,
-      currentPassword: string,
-      newPassword: string
-    ): Promise<void>;
+    changePassword(username: string, currentPassword: string, newPassword: string): Promise<void>;
   };
-
 }
 ```
 
@@ -118,16 +111,16 @@ async function updateUserWithAuth(
   // Check if user is editing themselves OR is an admin
   const isEditingSelf = currentUser.username === targetUsername;
   const isAdmin = currentUser.role === 'admin';
-  
+
   if (!isEditingSelf && !isAdmin) {
     throw new Error('Unauthorized: You can only edit your own profile');
   }
-  
+
   // Only admins can change roles
   if (updates.role && !isAdmin) {
     throw new Error('Unauthorized: Only admins can change roles');
   }
-  
+
   return await auth.simple.updateUser(targetUsername, updates);
 }
 
@@ -136,18 +129,18 @@ app.put('/api/users/:username', async (req, res) => {
   const currentUser = req.session.user; // From authenticated session
   const { username } = req.params;
   const updates = req.body;
-  
+
   try {
     // Authorization check
     if (currentUser.username !== username && currentUser.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    
+
     // Only admins can change roles
     if (updates.role && currentUser.role !== 'admin') {
       return res.status(403).json({ error: 'Only admins can change roles' });
     }
-    
+
     const updated = await auth.simple.updateUser(username, updates);
     res.json(updated);
   } catch (error) {
@@ -159,6 +152,7 @@ app.put('/api/users/:username', async (req, res) => {
 ## Security notes
 
 ### Password Security
+
 - Argon2id (via `@node-rs/argon2`) is used when available. The module automatically downgrades to Node's built-in `crypto.scrypt` with strong defaults when Argon2 cannot load.
 - Each user receives a random 16-byte salt and a global pepper (`EE_CSTORE_AUTH_SECRET`).
 - Password hashes are stored versioned to enable future migrations.
@@ -166,12 +160,14 @@ app.put('/api/users/:username', async (req, res) => {
 - Secrets and hash material never leave the module through logs.
 
 ### Authorization
+
 - ⚠️ **`updateUser` does NOT enforce authorization** - implement checks in your application layer
 - Recommended pattern: Users can edit themselves, admins can edit anyone
 - Role changes should be restricted to admins only
 - Consider field-level permissions (e.g., users can't set `verified: true` on themselves)
 
 ### Data Validation
+
 - Usernames are canonicalised to lowercase and must match `[a-z0-9._-]{3,64}`.
 - Validation happens on every entry point.
 - Only metadata is returned publicly (passwords never exposed).
@@ -196,6 +192,7 @@ The project includes two test suites:
 - **Integration tests** (`test/integration/**/*.integration.spec.ts`): Complete workflow tests with realistic cleanup patterns
 
 Integration tests follow best practices including:
+
 - Cleanup before and after each test (setting values to null before deletion)
 - Isolated test environments with unique hash keys
 - Serial execution to avoid race conditions
