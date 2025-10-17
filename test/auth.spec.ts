@@ -172,29 +172,29 @@ describe('CStoreAuth', () => {
     expect(users).toHaveLength(4);
 
     // Verify admin is present
-    const admin = users.find(u => u.username === 'admin');
+    const admin = users.find((u) => u.username === 'admin');
     expect(admin).toBeDefined();
     expect(admin?.role).toBe('admin');
 
     // Verify created users
-    const alice = users.find(u => u.username === 'alice');
+    const alice = users.find((u) => u.username === 'alice');
     expect(alice).toBeDefined();
     expect(alice?.role).toBe('user');
     expect(alice?.metadata).toEqual({ email: 'alice@example.com' });
     expect(alice?.type).toBe('simple');
 
-    const bob = users.find(u => u.username === 'bob');
+    const bob = users.find((u) => u.username === 'bob');
     expect(bob).toBeDefined();
     expect(bob?.role).toBe('user');
     expect(bob?.metadata).toEqual({ email: 'bob@example.com' });
 
-    const charlie = users.find(u => u.username === 'charlie');
+    const charlie = users.find((u) => u.username === 'charlie');
     expect(charlie).toBeDefined();
     expect(charlie?.role).toBe('admin');
     expect(charlie?.metadata).toEqual({ email: 'charlie@example.com' });
 
     // Ensure no passwords are leaked
-    users.forEach(user => {
+    users.forEach((user) => {
       expect(user).not.toHaveProperty('password');
     });
   });
@@ -210,7 +210,7 @@ describe('CStoreAuth', () => {
     await emptyAuth.simple.init();
 
     const users = await emptyAuth.simple.getAllUsers();
-    
+
     // Should only have the bootstrap admin
     expect(users).toHaveLength(1);
     expect(users[0].username).toBe('admin');
@@ -233,7 +233,7 @@ describe('CStoreAuth', () => {
 
     // Should only return valid users (admin, alice, bob)
     expect(users).toHaveLength(3);
-    expect(users.map(u => u.username).sort()).toEqual(['admin', 'alice', 'bob']);
+    expect(users.map((u) => u.username).sort()).toEqual(['admin', 'alice', 'bob']);
   });
 
   it('preserves metadata types when getting all users', async () => {
@@ -251,7 +251,7 @@ describe('CStoreAuth', () => {
     });
 
     const users = await auth.simple.getAllUsers<CustomMeta>();
-    const alice = users.find(u => u.username === 'alice');
+    const alice = users.find((u) => u.username === 'alice');
 
     expect(alice?.metadata.email).toBe('alice@example.com');
     expect(alice?.metadata.verified).toBe(true);
@@ -376,9 +376,9 @@ describe('CStoreAuth', () => {
       await auth.simple.changePassword('alice', 'OldPass123!', 'NewPass456!');
 
       // Verify old password no longer works
-      await expect(
-        auth.simple.authenticate('alice', 'OldPass123!')
-      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+      await expect(auth.simple.authenticate('alice', 'OldPass123!')).rejects.toBeInstanceOf(
+        InvalidCredentialsError
+      );
 
       // Verify new password works
       const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
@@ -465,14 +465,14 @@ function setEnv(values: { hkey: string; secret: string; bootstrap?: string }): v
   process.env.EE_CSTORE_AUTH_HKEY = values.hkey;
   process.env.EE_CSTORE_AUTH_SECRET = values.secret;
   if (values.bootstrap) {
-    process.env.EE_CSTORE_BOOTSTRAP_ADMIN_PASS = values.bootstrap;
+    process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW = values.bootstrap;
   } else {
-    delete process.env.EE_CSTORE_BOOTSTRAP_ADMIN_PASS;
+    delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
   }
 }
 
 function unsetEnv(): void {
   delete process.env.EE_CSTORE_AUTH_HKEY;
   delete process.env.EE_CSTORE_AUTH_SECRET;
-  delete process.env.EE_CSTORE_BOOTSTRAP_ADMIN_PASS;
+  delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
 }

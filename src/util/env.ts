@@ -3,7 +3,7 @@ import { EnvVarMissingError } from './errors';
 export const ENV_VARS = {
   HKEY: 'EE_CSTORE_AUTH_HKEY',
   SECRET: 'EE_CSTORE_AUTH_SECRET',
-  BOOTSTRAP_ADMIN_PASS: 'EE_CSTORE_BOOTSTRAP_ADMIN_PASS'
+  BOOTSTRAP_ADMIN_PASS: 'EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW'
 } as const;
 
 export interface AuthEnvConfig {

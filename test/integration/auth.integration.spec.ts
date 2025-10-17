@@ -9,13 +9,13 @@ import type { CStoreLikeClient } from '../../src/cstore';
 
 /**
  * Integration test suite for CStoreAuth with realistic cleanup patterns.
- * 
+ *
  * These tests exercise the full authentication flow including:
  * - User creation and retrieval
  * - Authentication workflows
  * - Batch user operations (getAllUsers)
  * - Error handling and edge cases
- * 
+ *
  * Best practices implemented:
  * - Cleanup before AND after each test
  * - Setting values to null before deletion
@@ -121,7 +121,7 @@ describe('CStoreAuth Integration Tests', () => {
   beforeAll(() => {
     // Set base environment variables
     process.env.EE_CSTORE_AUTH_SECRET = BASE_ENV.secret;
-    process.env.EE_CSTORE_BOOTSTRAP_ADMIN_PASS = BASE_ENV.bootstrap;
+    process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW = BASE_ENV.bootstrap;
   });
 
   beforeEach(() => {
@@ -136,7 +136,7 @@ describe('CStoreAuth Integration Tests', () => {
   afterAll(() => {
     // Clean up environment
     delete process.env.EE_CSTORE_AUTH_SECRET;
-    delete process.env.EE_CSTORE_BOOTSTRAP_ADMIN_PASS;
+    delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
     delete process.env.EE_CSTORE_AUTH_HKEY;
   });
 
@@ -174,7 +174,7 @@ describe('CStoreAuth Integration Tests', () => {
       // List all users
       const allUsers = await auth.simple.getAllUsers();
       expect(allUsers.length).toBeGreaterThanOrEqual(2); // admin + alice
-      const alice = allUsers.find(u => u.username === 'alice');
+      const alice = allUsers.find((u) => u.username === 'alice');
       expect(alice).toBeDefined();
       expect(alice?.metadata).toEqual({ email: 'alice@example.com', role: 'developer' });
 
@@ -208,13 +208,13 @@ describe('CStoreAuth Integration Tests', () => {
 
       // Retrieve all users
       const allUsers = await auth.simple.getAllUsers();
-      
+
       // Should have admin + 4 created users
       expect(allUsers).toHaveLength(5);
 
       // Verify each user
       for (const user of users) {
-        const found = allUsers.find(u => u.username === user.username);
+        const found = allUsers.find((u) => u.username === user.username);
         expect(found).toBeDefined();
         expect(found?.metadata).toEqual(user.metadata);
         expect(found?.role).toBe('user');
@@ -222,7 +222,7 @@ describe('CStoreAuth Integration Tests', () => {
       }
 
       // Verify admin is present
-      const admin = allUsers.find(u => u.username === 'admin');
+      const admin = allUsers.find((u) => u.username === 'admin');
       expect(admin).toBeDefined();
       expect(admin?.role).toBe('admin');
 
@@ -258,12 +258,12 @@ describe('CStoreAuth Integration Tests', () => {
       });
 
       const users = await auth.simple.getAllUsers<UserMeta>();
-      
-      const emp1 = users.find(u => u.username === 'employee1');
+
+      const emp1 = users.find((u) => u.username === 'employee1');
       expect(emp1?.metadata.department).toBe('Engineering');
       expect(emp1?.metadata.active).toBe(true);
 
-      const emp2 = users.find(u => u.username === 'employee2');
+      const emp2 = users.find((u) => u.username === 'employee2');
       expect(emp2?.metadata.department).toBe('Marketing');
       expect(emp2?.metadata.active).toBe(false);
 
@@ -282,7 +282,7 @@ describe('CStoreAuth Integration Tests', () => {
       await auth.simple.init();
 
       const users = await auth.simple.getAllUsers();
-      
+
       expect(users).toHaveLength(1);
       expect(users[0].username).toBe('admin');
       expect(users[0].role).toBe('admin');
@@ -307,7 +307,7 @@ describe('CStoreAuth Integration Tests', () => {
       const users = await auth.simple.getAllUsers();
 
       // Verify no password field in any user
-      users.forEach(user => {
+      users.forEach((user) => {
         expect(user).not.toHaveProperty('password');
         const userObj = user as unknown as Record<string, unknown>;
         expect(userObj.password).toBeUndefined();
@@ -334,16 +334,16 @@ describe('CStoreAuth Integration Tests', () => {
 
       const allUsers = await auth.simple.getAllUsers();
 
-      const admins = allUsers.filter(u => u.role === 'admin');
-      const regularUsers = allUsers.filter(u => u.role === 'user');
+      const admins = allUsers.filter((u) => u.role === 'admin');
+      const regularUsers = allUsers.filter((u) => u.role === 'user');
 
       // Should have 2 admins (bootstrap + admin1)
       expect(admins).toHaveLength(2);
-      expect(admins.map(a => a.username).sort()).toEqual(['admin', 'admin1']);
+      expect(admins.map((a) => a.username).sort()).toEqual(['admin', 'admin1']);
 
       // Should have 2 regular users
       expect(regularUsers).toHaveLength(2);
-      expect(regularUsers.map(u => u.username).sort()).toEqual(['user1', 'user2']);
+      expect(regularUsers.map((u) => u.username).sort()).toEqual(['user1', 'user2']);
 
       // Cleanup
       await cstore.cleanupHash(hkey);
@@ -363,9 +363,9 @@ describe('CStoreAuth Integration Tests', () => {
 
       await auth.simple.createUser('alice', 'Pass123!');
 
-      await expect(
-        auth.simple.createUser('alice', 'DifferentPass456!')
-      ).rejects.toThrow(UserExistsError);
+      await expect(auth.simple.createUser('alice', 'DifferentPass456!')).rejects.toThrow(
+        UserExistsError
+      );
 
       // Cleanup
       await cstore.cleanupHash(hkey);
@@ -383,13 +383,13 @@ describe('CStoreAuth Integration Tests', () => {
 
       await auth.simple.createUser('alice', 'CorrectPass123!');
 
-      await expect(
-        auth.simple.authenticate('alice', 'WrongPass123!')
-      ).rejects.toThrow(InvalidCredentialsError);
+      await expect(auth.simple.authenticate('alice', 'WrongPass123!')).rejects.toThrow(
+        InvalidCredentialsError
+      );
 
-      await expect(
-        auth.simple.authenticate('nonexistent', 'AnyPass123!')
-      ).rejects.toThrow(InvalidCredentialsError);
+      await expect(auth.simple.authenticate('nonexistent', 'AnyPass123!')).rejects.toThrow(
+        InvalidCredentialsError
+      );
 
       // Cleanup
       await cstore.cleanupHash(hkey);
@@ -416,9 +416,9 @@ describe('CStoreAuth Integration Tests', () => {
       ];
 
       for (const username of invalidUsernames) {
-        await expect(
-          auth.simple.createUser(username, 'ValidPass123!')
-        ).rejects.toThrow(InvalidUsernameError);
+        await expect(auth.simple.createUser(username, 'ValidPass123!')).rejects.toThrow(
+          InvalidUsernameError
+        );
       }
 
       // Cleanup
@@ -439,14 +439,14 @@ describe('CStoreAuth Integration Tests', () => {
       await auth.simple.init();
 
       const created = await auth.simple.createUser('alice', 'Pass123!');
-      
+
       expect(created.createdAt).toBe('2024-06-15T12:00:00.000Z');
       expect(created.updatedAt).toBe('2024-06-15T12:00:00.000Z');
 
       // Verify through getAllUsers
       const allUsers = await auth.simple.getAllUsers();
-      const alice = allUsers.find(u => u.username === 'alice');
-      
+      const alice = allUsers.find((u) => u.username === 'alice');
+
       expect(alice?.createdAt).toBe(created.createdAt);
       expect(alice?.updatedAt).toBe(created.updatedAt);
 
@@ -483,7 +483,7 @@ describe('CStoreAuth Integration Tests', () => {
 
       // Retrieve via getAllUsers
       const allUsers = await auth.simple.getAllUsers();
-      const alice = allUsers.find(u => u.username === 'alice');
+      const alice = allUsers.find((u) => u.username === 'alice');
       expect(alice?.metadata).toEqual(originalMetadata);
 
       // Authenticate and verify
@@ -557,7 +557,7 @@ describe('CStoreAuth Integration Tests', () => {
 
       // Verify through getAllUsers
       const allUsers = await auth.simple.getAllUsers();
-      const alice = allUsers.find(u => u.username === 'alice');
+      const alice = allUsers.find((u) => u.username === 'alice');
       expect(alice?.metadata).toEqual(updated.metadata);
 
       // Cleanup
@@ -592,8 +592,8 @@ describe('CStoreAuth Integration Tests', () => {
 
       // Verify through getAllUsers
       const allUsers = await auth.simple.getAllUsers();
-      const admins = allUsers.filter(u => u.role === 'admin');
-      expect(admins.some(a => a.username === 'bob')).toBe(true);
+      const admins = allUsers.filter((u) => u.role === 'admin');
+      expect(admins.some((a) => a.username === 'bob')).toBe(true);
 
       // Cleanup
       await cstore.cleanupHash(hkey);
@@ -672,9 +672,7 @@ describe('CStoreAuth Integration Tests', () => {
       await auth.simple.changePassword('alice', 'OldPass123!', 'NewPass456!');
 
       // Verify old password no longer works
-      await expect(
-        auth.simple.authenticate('alice', 'OldPass123!')
-      ).rejects.toThrow('Invalid');
+      await expect(auth.simple.authenticate('alice', 'OldPass123!')).rejects.toThrow('Invalid');
 
       // Verify new password works
       const authenticated = await auth.simple.authenticate('alice', 'NewPass456!');
@@ -844,4 +842,3 @@ describe('CStoreAuth Integration Tests', () => {
     });
   });
 });
-

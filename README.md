@@ -20,11 +20,11 @@ npm install @ratio1/cstore-auth-ts
 
 ## Required environment variables
 
-| Variable                         | Description                                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `EE_CSTORE_AUTH_HKEY`            | Hash key that stores all user records (e.g. `auth:default`).                                       |
-| `EE_CSTORE_AUTH_SECRET`          | Long-lived server-side pepper mixed into password hashes.                                          |
-| `EE_CSTORE_BOOTSTRAP_ADMIN_PASS` | One-time bootstrap password for the initial `admin` user. Required until the admin account exists. |
+| Variable                            | Description                                                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `EE_CSTORE_AUTH_HKEY`               | Hash key that stores all user records (e.g. `auth:default`).                                       |
+| `EE_CSTORE_AUTH_SECRET`             | Long-lived server-side pepper mixed into password hashes.                                          |
+| `EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW` | One-time bootstrap password for the initial `admin` user. Required until the admin account exists. |
 
 ## Quick start
 
