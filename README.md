@@ -20,11 +20,13 @@ npm install @ratio1/cstore-auth-ts
 
 ## Required environment variables
 
-| Variable                            | Description                                                                                        |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `EE_CSTORE_AUTH_HKEY`               | Hash key that stores all user records (e.g. `auth:default`).                                       |
-| `EE_CSTORE_AUTH_SECRET`             | Long-lived server-side pepper mixed into password hashes.                                          |
-| `EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW` | One-time bootstrap password for the initial `admin` user. Required until the admin account exists. |
+| Variable                               | Description                                                                                        |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `R1EN_CSTORE_AUTH_HKEY`                | Hash key that stores all user records (e.g. `auth:default`).                                       |
+| `R1EN_CSTORE_AUTH_SECRET`              | Long-lived server-side pepper mixed into password hashes.                                          |
+| `R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD` | One-time bootstrap password for the initial `admin` user. Required until the admin account exists. |
+
+> **Note:** Legacy environment variable names (`EE_CSTORE_AUTH_HKEY`, `EE_CSTORE_AUTH_SECRET`, `EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW`) are still supported for backwards compatibility but are deprecated.
 
 ## Quick start
 
@@ -154,7 +156,7 @@ app.put('/api/users/:username', async (req, res) => {
 ### Password Security
 
 - Argon2id (via `@node-rs/argon2`) is used when available. The module automatically downgrades to Node's built-in `crypto.scrypt` with strong defaults when Argon2 cannot load.
-- Each user receives a random 16-byte salt and a global pepper (`EE_CSTORE_AUTH_SECRET`).
+- Each user receives a random 16-byte salt and a global pepper (`R1EN_CSTORE_AUTH_SECRET`).
 - Password hashes are stored versioned to enable future migrations.
 - `changePassword` always requires current password verification.
 - Secrets and hash material never leave the module through logs.

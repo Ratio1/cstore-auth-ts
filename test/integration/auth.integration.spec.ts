@@ -120,8 +120,8 @@ describe('CStoreAuth Integration Tests', () => {
 
   beforeAll(() => {
     // Set base environment variables
-    process.env.EE_CSTORE_AUTH_SECRET = BASE_ENV.secret;
-    process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW = BASE_ENV.bootstrap;
+    process.env.R1EN_CSTORE_AUTH_SECRET = BASE_ENV.secret;
+    process.env.R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD = BASE_ENV.bootstrap;
   });
 
   beforeEach(() => {
@@ -135,9 +135,9 @@ describe('CStoreAuth Integration Tests', () => {
 
   afterAll(() => {
     // Clean up environment
-    delete process.env.EE_CSTORE_AUTH_SECRET;
-    delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
-    delete process.env.EE_CSTORE_AUTH_HKEY;
+    delete process.env.R1EN_CSTORE_AUTH_SECRET;
+    delete process.env.R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD;
+    delete process.env.R1EN_CSTORE_AUTH_HKEY;
   });
 
   describe('User Lifecycle', () => {

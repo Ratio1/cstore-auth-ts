@@ -462,17 +462,17 @@ function createAuth(): CStoreAuth {
 }
 
 function setEnv(values: { hkey: string; secret: string; bootstrap?: string }): void {
-  process.env.EE_CSTORE_AUTH_HKEY = values.hkey;
-  process.env.EE_CSTORE_AUTH_SECRET = values.secret;
+  process.env.R1EN_CSTORE_AUTH_HKEY = values.hkey;
+  process.env.R1EN_CSTORE_AUTH_SECRET = values.secret;
   if (values.bootstrap) {
-    process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW = values.bootstrap;
+    process.env.R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD = values.bootstrap;
   } else {
-    delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
+    delete process.env.R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD;
   }
 }
 
 function unsetEnv(): void {
-  delete process.env.EE_CSTORE_AUTH_HKEY;
-  delete process.env.EE_CSTORE_AUTH_SECRET;
-  delete process.env.EE_CSTORE_AUTH_BOOTSTRAP_ADMIN_PW;
+  delete process.env.R1EN_CSTORE_AUTH_HKEY;
+  delete process.env.R1EN_CSTORE_AUTH_SECRET;
+  delete process.env.R1EN_CSTORE_AUTH_BOOTSTRAP_ADMIN_PWD;
 }
