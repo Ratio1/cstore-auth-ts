@@ -1,6 +1,7 @@
 import { Ratio1Sdk, type Ratio1SdkOptions } from '@ratio1/ratio1-sdk-ts';
 
 type CStoreService = Ratio1Sdk['cstore'];
+type HttpAdapter = NonNullable<Ratio1SdkOptions['httpAdapter']>;
 
 /**
  * Minimal surface we rely on for interacting with CStore hashes. The official client returns
@@ -13,8 +14,20 @@ export interface CStoreLikeClient {
 }
 
 export function createDefaultCStoreClient(options?: Ratio1SdkOptions): CStoreLikeClient {
-  const client = new Ratio1Sdk(options);
+  const client = new Ratio1Sdk({
+    ...options,
+    httpAdapter: createNoStoreHttpAdapter(options?.httpAdapter)
+  });
   return new CStoreClientAdapter(client.cstore);
+}
+
+function createNoStoreHttpAdapter(adapter?: HttpAdapter): HttpAdapter {
+  return {
+    fetch(url: string, options?: RequestInit) {
+      const fetchImpl = adapter?.fetch ?? fetch;
+      return fetchImpl(url, { ...options, cache: 'no-store' });
+    }
+  };
 }
 
 class CStoreClientAdapter implements CStoreLikeClient {
