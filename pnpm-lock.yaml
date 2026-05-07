@@ -11,9 +11,9 @@ importers:
       '@node-rs/argon2':
         specifier: ^1.8.0
         version: 1.8.3
-      '@ratio1/ratio1-sdk-ts':
-        specifier: ^1.1.5
-        version: 1.1.5
+      '@ratio1/edge-sdk-ts':
+        specifier: ^1.5.4
+        version: 1.5.4
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.1
@@ -608,8 +608,8 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@ratio1/ratio1-sdk-ts@1.1.5':
-    resolution: {integrity: sha512-T9y7DQy+RlV+iiC+r1JLo7+7qKKL3+e1xBrwCMsW4b5dqEMoOZHmFNo3Rg4SrVPBBK0vOlSi7OvcB6sDcwXHmg==}
+  '@ratio1/edge-sdk-ts@1.5.4':
+    resolution: {integrity: sha512-nk7RFVjxyaYDtUCN5x+o9A8boebzfdtX490HbMILh41ZpQhQ4LuFu0kAuTTriFcZfEUG48tdMrY1k1Pt0/lokw==}
 
   '@rollup/rollup-android-arm-eabi@4.52.4':
     resolution: {integrity: sha512-BTm2qKNnWIQ5auf4deoetINJm2JzvihvGb9R6K/ETwKLql/Bb3Eg2H1FBp1gUb4YGbydMA3jcmQTR73q7J+GAA==}
@@ -1222,8 +1222,8 @@ packages:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
     engines: {node: '>=14'}
 
-  form-data@4.0.4:
-    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
+  form-data@4.0.5:
+    resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
     engines: {node: '>= 6'}
 
   fs-extra@7.0.1:
@@ -1260,6 +1260,7 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globals@14.0.0:
@@ -2544,11 +2545,11 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@ratio1/ratio1-sdk-ts@1.1.5':
+  '@ratio1/edge-sdk-ts@1.5.4':
     dependencies:
       cross-fetch: 4.1.0
     optionalDependencies:
-      form-data: 4.0.4
+      form-data: 4.0.5
     transitivePeerDependencies:
       - encoding
 
@@ -3211,7 +3212,7 @@ snapshots:
       cross-spawn: 7.0.6
       signal-exit: 4.1.0
 
-  form-data@4.0.4:
+  form-data@4.0.5:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8

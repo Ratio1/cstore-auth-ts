@@ -1,6 +1,6 @@
 # @ratio1/cstore-auth-ts
 
-Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [@ratio1/ratio1-sdk-ts](https://github.com/Ratio1/ratio1-sdk-ts) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
+Plug-and-play authentication layer for Ratio1 CStore hashes. This TypeScript library wraps the official [@ratio1/edge-sdk-ts](https://www.npmjs.com/package/@ratio1/edge-sdk-ts) SDK, providing a minimal API to bootstrap an admin account and manage simple username/password credentials.
 
 ## Features
 

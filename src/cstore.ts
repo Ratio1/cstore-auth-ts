@@ -1,6 +1,6 @@
-import { Ratio1Sdk, type Ratio1SdkOptions } from '@ratio1/ratio1-sdk-ts';
+import { EdgeSdk, type EdgeSdkOptions } from '@ratio1/edge-sdk-ts';
 
-type CStoreService = Ratio1Sdk['cstore'];
+type CStoreService = EdgeSdk['cstore'];
 
 /**
  * Minimal surface we rely on for interacting with CStore hashes. The official client returns
@@ -12,8 +12,8 @@ export interface CStoreLikeClient {
   hgetAll(hkey: string): Promise<Record<string, string>>;
 }
 
-export function createDefaultCStoreClient(options?: Ratio1SdkOptions): CStoreLikeClient {
-  const client = new Ratio1Sdk(options);
+export function createDefaultCStoreClient(options?: EdgeSdkOptions): CStoreLikeClient {
+  const client = new EdgeSdk(options);
   return new CStoreClientAdapter(client.cstore);
 }
 
@@ -22,7 +22,7 @@ class CStoreClientAdapter implements CStoreLikeClient {
 
   async hget(hkey: string, key: string): Promise<string | null> {
     try {
-      // @ratio1/ratio1-sdk-ts exports hget({ hkey, key })
+      // @ratio1/edge-sdk-ts exports hget({ hkey, key })
       const value = await this.service.hget({ hkey, key });
       if (value === undefined || value === null) {
         return null;
@@ -40,12 +40,12 @@ class CStoreClientAdapter implements CStoreLikeClient {
   }
 
   async hset(hkey: string, key: string, value: string): Promise<void> {
-    // @ratio1/ratio1-sdk-ts exports hset({ hkey, key, value }) and resolves to boolean
+    // @ratio1/edge-sdk-ts exports hset({ hkey, key, value }) and resolves to boolean
     await this.service.hset({ hkey, key, value });
   }
 
   async hgetAll(hkey: string): Promise<Record<string, string>> {
-    // @ratio1/ratio1-sdk-ts exports hgetall({ hkey }) returning either an object map or array pairs
+    // @ratio1/edge-sdk-ts exports hgetall({ hkey }) returning an object map
     const raw = await this.service.hgetall({ hkey });
     if (!raw) {
       return {};
@@ -63,7 +63,17 @@ class CStoreClientAdapter implements CStoreLikeClient {
       return result;
     }
 
-    return raw;
+    const result: Record<string, string> = {};
+    for (const [field, value] of Object.entries(raw)) {
+      if (typeof value === 'string') {
+        result[field] = value;
+        continue;
+      }
+      if (value !== undefined && value !== null) {
+        result[field] = String(value);
+      }
+    }
+    return result;
   }
 }
 
@@ -76,8 +86,13 @@ function isNotFoundError(error: unknown): boolean {
     return false;
   }
 
-  const maybeResponseCode = (error as { status?: number }).status;
-  return maybeResponseCode === 404;
+  const maybeStatus = (error as { status?: number }).status;
+  if (maybeStatus === 404) {
+    return true;
+  }
+
+  const maybeResponseStatus = (error as { response?: { status?: number } }).response?.status;
+  return maybeResponseStatus === 404;
 }
 
-export type { Ratio1SdkOptions };
+export type { EdgeSdkOptions };

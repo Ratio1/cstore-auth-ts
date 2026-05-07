@@ -2,7 +2,7 @@
 
 ## Repo Architect
 
-- Confirmed against `@ratio1/ratio1-sdk-ts@1.1.5`: CStore service methods accept `{ hkey, key }` objects. `CStoreClientAdapter` hides that detail and exposes `hget`, `hset`, `hgetAll` signatures used throughout the package.
+- Confirmed against `@ratio1/edge-sdk-ts@1.5.4`: CStore service methods accept `{ hkey, key }` objects. `CStoreClientAdapter` hides that detail and exposes `hget`, `hset`, `hgetAll` signatures used throughout the package.
 - Builds produce ESM, CJS, and declaration bundles via `tsup`. Entry point is `src/index.ts` and only exports typed surface area for tree-shaking.
 - `tsconfig.json` enables strict mode and preserves module resolution for Node 18+. Source maps are emitted for debugging consumers.
 - Provider modules live alongside the orchestrator: `src/simple-auth.ts` implements the current simple provider so `src/auth.ts` can stay lean as new providers (OAuth, etc.) are introduced.
